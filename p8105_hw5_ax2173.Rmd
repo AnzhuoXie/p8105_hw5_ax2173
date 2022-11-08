@@ -1,0 +1,33 @@
+---
+title: "p8015_hw5_ax2173"
+output: github_document
+---
+
+```{r}  
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = '90%'
+)
+
+theme_set(theme_classic() + theme(legend.position = 'bottom'))
+
+options(
+  ggplot2.continous.colour = 'viridis_d',
+  ggplot2.continous.fill = 'viridis_d'
+)
+
+scalr_colour_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+## Problem 1
+
+
+## Problem 2
+
+
+## Problem 3
+
