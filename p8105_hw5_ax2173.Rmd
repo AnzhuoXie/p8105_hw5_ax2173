@@ -28,6 +28,40 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Problem 2
 
+Import data. 
+
+```{r}
+homicide_df = read_csv("./data/homicide-data.csv")
+```
+
+* There are some descriptions about the raw data:
+  * There are totally `r ncol(homicide_df)` columns.
+  * There are totally `r nrow(homicide_df)` rows.
+  * In this dataframe, these variables can be found: `r colnames(homicide_df)`.
+
+Create a city_state variable.
+
+```{r}
+homicide_df %>% 
+  mutate(city_state = str_c(city, ', ',state))
+```
+
+Summarize within cities to obtain the total number of homicides and the number of unsolved homicides.
+
+```{r}
+homicide_df %>%  
+  mutate(
+    homicide = ifelse(disposition == "Closed without arrest", 1, 0),
+    unsolved_homicides = ifelse(disposition == "Open/No arrest", 1, 0)
+    ) %>% 
+  group_by(city) %>% 
+  summarize(
+    n_homicides = sum(homicide),
+    n_unsolved_homicides = sum(unsolved_homicides),
+  ) %>% 
+  knitr::kable()
+```
+
 
 ## Problem 3
 
