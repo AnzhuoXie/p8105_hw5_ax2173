@@ -58,10 +58,20 @@ homicide_df %>%
   summarize(
     n_homicides = sum(homicide),
     n_unsolved_homicides = sum(unsolved_homicides),
-  ) %>% 
+   ) %>% 
   knitr::kable()
 ```
 
+For the city of Baltimore, MD, estimate the proportion of homicides that are unsolved.
+
+```{r}
+prop_of_unsolved_homicides = 
+  prop.test(1673, 1673 + 152, alternative = c("two.sided"), conf.level = 0.95) %>% 
+  broom::tidy()
+```
+
+* For the city of Baltimore, MD, the estimated proportion of homicides that are unsolved is `r prop_of_unsolved_homicides[['estimate']]`.
+* The confidence interval is (`r prop_of_unsolved_homicides[['conf.low']]`, `r prop_of_unsolved_homicides[['conf.high']]`)
 
 ## Problem 3
 
