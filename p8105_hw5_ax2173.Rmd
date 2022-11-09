@@ -5,6 +5,8 @@ output: github_document
 
 ```{r}  
 library(tidyverse)
+library(rvest)
+library(patchwork)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -21,6 +23,8 @@ options(
 
 scalr_colour_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(1)
 ```
 
 ## Problem 1
@@ -42,14 +46,16 @@ homicide_df = read_csv("./data/homicide-data.csv")
 Create a city_state variable.
 
 ```{r}
-homicide_df %>% 
+homicide_df =
+  homicide_df %>% 
   mutate(city_state = str_c(city, ', ',state))
 ```
 
 Summarize within cities to obtain the total number of homicides and the number of unsolved homicides.
 
 ```{r}
-homicide_df %>%  
+count_homicide_df = 
+  homicide_df %>%  
   mutate(
     homicide = ifelse(disposition == "Closed without arrest", 1, 0),
     unsolved_homicides = ifelse(disposition == "Open/No arrest", 1, 0)
@@ -58,7 +64,10 @@ homicide_df %>%
   summarize(
     n_homicides = sum(homicide),
     n_unsolved_homicides = sum(unsolved_homicides),
-   ) %>% 
+    n_total = n_homicides + n_unsolved_homicides
+   ) 
+
+count_homicide_df %>% 
   knitr::kable()
 ```
 
@@ -73,5 +82,144 @@ prop_of_unsolved_homicides =
 * For the city of Baltimore, MD, the estimated proportion of homicides that are unsolved is `r prop_of_unsolved_homicides[['estimate']]`.
 * The confidence interval is (`r prop_of_unsolved_homicides[['conf.low']]`, `r prop_of_unsolved_homicides[['conf.high']]`)
 
+____
+Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. 
+Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+____
+
+
+
+```{r, eval = FALSE}
+
+
+count_homicide_df = 
+  count_homicide_df %>% 
+  nest(data = n_homicides : n_total) %>% 
+  mutate(
+    prop = map(data, prop.test(n_unsolved_homicides, n_total, alternative = c("two.sided"), conf.level = 0.95)),
+    results = map(prop, broom:tidy)
+  )
+```
+
+nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+  mutate(
+    models = map(.x = data, ~lm(price ~ stars + room_type, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(term != '(Intercept)') %>% 
+  select(borough, term, estimate) %>% 
+  pivot_wider(
+    names_from = borough,
+    values_from = estimate
+  )
+
+
+prop_test = function(data) {
+  
+  prop.test(n_unsolved_homicides, n_total, alternative = c("two.sided"), conf.level = 0.95) 
+  
+}
+
+
+
+
+
 ## Problem 3
 
+```{r}
+t_test = function(sample_size, mun, sigma) {
+  
+  x = rnorm(n = sample_size, mean = mun, sd = sigma)
+  
+  t.test(x, mu = mun, conf.level = 0.95) %>% 
+    broom::tidy() %>% 
+    select(estimate, p.value)
+  
+}
+
+t_test_result_0 = 
+  rerun(5, t_test(sample_size = 30, mu = 0, sigma = 5)) %>% 
+  bind_rows
+```
+
+Repeat the above for mu = {1,2,3,4,5,6}. 
+
+```{r}
+t_test_result = 
+  tibble(
+    mu = c(0, 1, 2, 3, 4, 5, 6)
+  ) %>% 
+  mutate(
+    output_lists = map(.x = mu, ~rerun(5, t_test(sample_size = 30, mun = .x, sigma = 5))),
+    estimate_df = map(output_lists, bind_rows)
+  ) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_df)
+```
+
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis.
+* We can find the association between the effect size and power: under the same sample size, with the increase of effect size, the power grows.
+
+```{r fig.width=9, fig.height=6}
+t_test_result %>% 
+  mutate(
+    if_rejected = ifelse(p.value < 0.05, 1, 0)
+      ) %>% 
+  group_by(mu) %>% 
+  summarize(
+    n_rejected = sum(if_rejected),
+    prop_rejected = n_rejected / 5
+    ) %>% 
+  ggplot(aes(x = mu, y = prop_rejected, color = mu)) +
+  geom_point() +
+    labs(
+    title = 'The proportion of times the null was rejected of each real mean',
+    x = 'True value of mean',
+    y = 'Rejection proportion',
+    caption = 'UNI: ax2173'
+  )
+```
+
+Make a plot showing the average estimate of μ̂  on the y axis and the true value of μ on the x axis. Make a second plot the average estimate of μ̂  only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. 
+
+Is the sample average of μ̂  across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
+
+```{r}
+plot_with_all_mu =   
+  t_test_result %>% 
+  group_by(mu) %>% 
+  summarize(
+    ave_estimate = mean(estimate)
+  ) %>% 
+  ggplot(aes(x = mu, y = ave_estimate, color = mu)) +
+  geom_point() +
+    labs(
+    title = 'The average estimate mu vs. true value of mu',
+    x = 'The true value of mu',
+    y = 'The average estimate of mu',
+    caption = 'UNI: ax2173'
+  )
+
+plot_with_rejected_mu = 
+  t_test_result %>% 
+  filter(p.value <= 0.05) %>% 
+  group_by(mu) %>% 
+  summarize(
+    ave_estimate = mean(estimate)
+  ) %>% 
+  ggplot(aes(x = mu, y = ave_estimate, color = mu)) +
+  geom_point() +
+    labs(
+    title = 'The average estimate rejected mu vs. true value of mu',
+    x = 'The true value of mu',
+    y = 'The average estimate of rejected mu',
+    caption = 'UNI: ax2173'
+  )
+
+plot_with_all_mu + plot_with_rejected_mu
+```
+
+The sample average of mu across test for which the null is rejected is not approximately equal to the true value of mean. Maybe because if these estimate mu is roughly equal to the true mean, their null will not be rejected.
