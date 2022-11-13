@@ -83,10 +83,11 @@ prop_of_unsolved_homicides =
 * The confidence interval is (`r prop_of_unsolved_homicides[['conf.low']]`, `r prop_of_unsolved_homicides[['conf.high']]`)
 
 Now run prop.test for each of the cities in dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. 
+
 * NOTICE!!! 
   * The estimate column shows the required proportion of unsolved homicides.
-  * The conf.low column shows the required the lower bond of CI of each city.
-  * The conf.high column shows the required the higher bond of CI of each city.
+  * The conf.low column shows the required the lower limit of CI of each city.
+  * The conf.high column shows the required the upper limit of CI of each city.
   
 ```{r}
 prop_test = function(data) {
@@ -106,8 +107,23 @@ count_homicide_df =
   select(city, estimate, conf.low, conf.high)
 ```
 
+Create a plot that shows the estimates and CIs for each city.
 
-
+```{r fig.width=9, fig.height=6}
+count_homicide_df %>% 
+  mutate(city = fct_reorder(city, estimate)) %>% 
+  ggplot(aes(city, estimate, color = city)) +
+  geom_linerange(aes(ymin = conf.low, ymax = conf.high)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.8) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) +
+  theme(legend.position = 'none') +
+  labs(
+    title = 'The proportion and CIs for each city',
+    x = 'Cities',
+    y = 'Proportion and CIs',
+    caption = 'UNI: ax2173'
+  )
+```
 
 ## Problem 3
 
@@ -123,7 +139,7 @@ t_test = function(sample_size, mun, sigma) {
 }
 
 t_test_result_0 = 
-  rerun(5, t_test(sample_size = 30, mu = 0, sigma = 5)) %>% 
+  rerun(5000, t_test(sample_size = 30, mu = 0, sigma = 5)) %>% 
   bind_rows
 ```
 
@@ -135,7 +151,7 @@ t_test_result =
     mu = c(0, 1, 2, 3, 4, 5, 6)
   ) %>% 
   mutate(
-    output_lists = map(.x = mu, ~rerun(5, t_test(sample_size = 30, mun = .x, sigma = 5))),
+    output_lists = map(.x = mu, ~rerun(5000, t_test(sample_size = 30, mun = .x, sigma = 5))),
     estimate_df = map(output_lists, bind_rows)
   ) %>% 
   select(-output_lists) %>% 
@@ -153,11 +169,11 @@ t_test_result %>%
   group_by(mu) %>% 
   summarize(
     n_rejected = sum(if_rejected),
-    prop_rejected = n_rejected / 5
+    prop_rejected = n_rejected / 5000
     ) %>% 
   ggplot(aes(x = mu, y = prop_rejected, color = mu)) +
   geom_point() +
-    labs(
+  labs(
     title = 'The proportion of times the null was rejected of each real mean',
     x = 'True value of mean',
     y = 'Rejection proportion',
@@ -169,7 +185,7 @@ Make a plot showing the average estimate of μ̂  on the y axis and the true val
 
 Is the sample average of μ̂  across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
 
-```{r}
+```{r fig.width=9, fig.height=6}
 plot_with_all_mu =   
   t_test_result %>% 
   group_by(mu) %>% 
